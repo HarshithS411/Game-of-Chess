@@ -2,7 +2,7 @@ import pygame
 
 pygame.init()
 WIDTH = 1000
-HEIGHT = 775
+HEIGHT = 750
 screen = pygame.display.set_mode([WIDTH, HEIGHT])
 pygame.display.set_caption('Two-Player Pygame Chess!')
 font = pygame.font.Font('freesansbold.ttf', 20)
@@ -61,6 +61,7 @@ white_knight_small = pygame.transform.scale(white_knight,(45,45))
 white_pawn = pygame.image.load('assets/images/white pawn.png')
 white_pawn = pygame.transform.scale(white_pawn,(65,65))
 white_pawn_small = pygame.transform.scale(white_pawn,(45,45))
+
 white_images = [white_pawn, white_queen, white_king, white_knight, white_rook, white_bishop]
 small_white_images = [white_pawn_small, white_queen_small, white_king_small, white_knight_small, white_rook_small, white_bishop_small]
 black_images = [black_pawn, black_queen, black_king, black_knight, black_rook, black_bishop]
@@ -72,36 +73,37 @@ counter = 0
 winner = ''
 game_over = False
 
-#draw main game board
+# draw main game board
 def draw_board():
-    for i in range(32):
-        column = i % 4
-        row = i // 4
-        if row % 2 == 0:
-            pygame.draw.rect(screen, 'light gray', [600 - (column * 200), row * 100, 100, 100])
-        else:
-            pygame.draw.rect(screen, 'light gray', [700 - (column * 200), row * 100, 100, 100])
-        pygame.draw.rect(screen, 'gray', [0, 800, WIDTH, 100])
-        pygame.draw.rect(screen, 'gold', [0, 800, WIDTH, 100], 5)
-        pygame.draw.rect(screen, 'gold', [800, 0, 200, HEIGHT], 5)
-        status_text = ['White: Select a Piece to Move!', 'White: Select a Destination!',
-                       'Black: Select a Piece to Move!', 'Black: Select a Destination!']
-        screen.blit(big_font.render(status_text[turn_step], True, 'black'), (20, 820))
-        for i in range(9):
-            pygame.draw.line(screen, 'black', (0, 100 * i), (800, 100 * i), 2)
-            pygame.draw.line(screen, 'black', (100 * i, 0), (100 * i, 800), 2)
-        screen.blit(medium_font.render('FORFEIT', True, 'black'), (810, 830))
+    for row in range(8):
+        for column in range(8):
+            if (row + column) % 2 == 0:
+                pygame.draw.rect(screen, 'light gray', [column * 100, row * 80, 100, 100])
+            else:
+                pygame.draw.rect(screen, 'black', [column * 100, row * 80, 100, 100])
+    pygame.draw.rect(screen, 'gray', [0, HEIGHT - 100, WIDTH, 100])
+    pygame.draw.rect(screen, 'gold', [0, HEIGHT - 100, WIDTH, 100], 5)
+    pygame.draw.rect(screen, 'gold', [800, 0, 200, HEIGHT], 5)
+    status_text = ['White: Select a Piece to Move!', 'White: Select a Destination!',
+                   'Black: Select a Piece to Move!', 'Black: Select a Destination!']
+    text_surface = big_font.render(status_text[turn_step], True, 'black')
+    text_rect = text_surface.get_rect(topleft=(20, 675))
+    screen.blit(text_surface, text_rect)
+    
+
+
 
 # Main game loop
 run = True
 while run:
     timer.tick(fps)
     screen.fill('dark gray')
+    draw_board()
 
-    # event handling
+    #event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-    
+            
     pygame.display.flip()
 pygame.quit()
