@@ -66,7 +66,7 @@ white_images = [white_pawn, white_queen, white_king, white_knight, white_rook, w
 small_white_images = [white_pawn_small, white_queen_small, white_king_small, white_knight_small, white_rook_small, white_bishop_small]
 black_images = [black_pawn, black_queen, black_king, black_knight, black_rook, black_bishop]
 small_black_images = [black_pawn_small, black_queen_small, black_king_small, black_knight_small, black_rook_small, black_bishop_small]
-piece_list = ['pawn', 'queen', 'king', 'rook', 'bishop']
+piece_list = ['pawn', 'queen', 'king', 'rook', 'bishop', 'knight']
 
 # check variables/ flashing counter
 counter = 0
@@ -90,7 +90,21 @@ def draw_board():
     text_rect = text_surface.get_rect(topleft=(20, 675))
     screen.blit(text_surface, text_rect)
     
+# draw pieces onto board
+def draw_pieces():
+    for i in range(len(white_pieces)):
+        index = piece_list.index(white_pieces[i])
+        if white_pieces[i] == 'pawn':
+            screen.blit(white_pawn, (white_location[i][0] * 100 + 22, white_location[i][1] * 100 + 30))
+        else:
+            screen.blit(white_images[index], (white_location[i][0] * 100 + 10, white_location[i][1] * 100 + 10))
 
+    for i in range(len(black_pieces)):
+        index = piece_list.index(black_pieces[i])
+        if black_pieces[i] == 'pawn':
+            screen.blit(black_pawn, (black_location[i][0] * 100 + 22, black_location[i][1] * 100 + 30))
+        else:
+            screen.blit(black_images[index], (black_location[i][0] * 100 + 10, black_location[i][1] * 100 + 10))
 
 
 # Main game loop
@@ -99,6 +113,7 @@ while run:
     timer.tick(fps)
     screen.fill('dark gray')
     draw_board()
+    draw_pieces()
 
     #event handling
     for event in pygame.event.get():
