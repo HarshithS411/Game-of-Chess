@@ -73,16 +73,22 @@ white_pawn = pygame.image.load('assets/images/white pawn.png')
 white_pawn = pygame.transform.scale(white_pawn, (65, 65))
 white_pawn_small = pygame.transform.scale(white_pawn, (45, 45))
 white_images = [white_pawn, white_queen, white_king, white_knight, white_rook, white_bishop]
+white_moved = [False, False, False, False, False, False, False, False,
+               False, False, False, False, False, False, False, False]
 small_white_images = [white_pawn_small, white_queen_small, white_king_small, white_knight_small,
                       white_rook_small, white_bishop_small]
 black_images = [black_pawn, black_queen, black_king, black_knight, black_rook, black_bishop]
 small_black_images = [black_pawn_small, black_queen_small, black_king_small, black_knight_small,
                       black_rook_small, black_bishop_small]
+black_moved = [False, False, False, False, False, False, False, False,
+               False, False, False, False, False, False, False, False]
 piece_list = ['pawn', 'queen', 'king', 'knight', 'rook', 'bishop']
 # check variables/ flashing counter
 counter = 0
 winner = ''
 game_over = False
+check = False
+castling_moves = []
 
 # draw main game board by bala vinay
 def draw_board():
@@ -132,8 +138,10 @@ def draw_pieces():
 
 # function to check all pieces valid options on board by harshith
 def check_options(pieces, locations, turn):
+    global castling_moves
     moves_list = []
     all_moves_list = []
+    castling_moves = []
     for i in range((len(pieces))):
         location = locations[i]
         piece = pieces[i]
@@ -148,7 +156,7 @@ def check_options(pieces, locations, turn):
         elif piece == 'queen':
             moves_list = check_queen(location, turn)
         elif piece == 'king':
-            moves_list = check_king(location, turn)
+            moves_list, castling_moves = check_king(location, turn)
         all_moves_list.append(moves_list)
     return all_moves_list
 
@@ -156,6 +164,7 @@ def check_options(pieces, locations, turn):
 # check king valid moves by kishore
 def check_king(position, color):
     moves_list = []
+    castle_moves = check_castling()
     if color == 'white':
         enemies_list = black_locations
         friends_list = white_locations
@@ -168,7 +177,7 @@ def check_king(position, color):
         target = (position[0] + targets[i][0], position[1] + targets[i][1])
         if target not in friends_list and 0 <= target[0] <= 7 and 0 <= target[1] <= 7:
             moves_list.append(target)
-    return moves_list
+    return moves_list, castle_moves
 
 
 # check queen valid moves by bala vinay
@@ -259,9 +268,9 @@ def check_pawn(position, color):
         if (position[0], position[1] + 1) not in white_locations and \
                 (position[0], position[1] + 1) not in black_locations and position[1] < 7:
             moves_list.append((position[0], position[1] + 1))
-        if (position[0], position[1] + 2) not in white_locations and \
-                (position[0], position[1] + 2) not in black_locations and position[1] == 1:
-            moves_list.append((position[0], position[1] + 2))
+            if (position[0], position[1] + 2) not in white_locations and \
+                    (position[0], position[1] + 2) not in black_locations and position[1] == 1:
+                moves_list.append((position[0], position[1] + 2))
         if (position[0] + 1, position[1] + 1) in black_locations:
             moves_list.append((position[0] + 1, position[1] + 1))
         if (position[0] - 1, position[1] + 1) in black_locations:
@@ -270,9 +279,9 @@ def check_pawn(position, color):
         if (position[0], position[1] - 1) not in white_locations and \
                 (position[0], position[1] - 1) not in black_locations and position[1] > 0:
             moves_list.append((position[0], position[1] - 1))
-        if (position[0], position[1] - 2) not in white_locations and \
-                (position[0], position[1] - 2) not in black_locations and position[1] == 6:
-            moves_list.append((position[0], position[1] - 2))
+            if (position[0], position[1] - 2) not in white_locations and \
+                    (position[0], position[1] - 2) not in black_locations and position[1] == 6:
+                moves_list.append((position[0], position[1] - 2))
         if (position[0] + 1, position[1] - 1) in white_locations:
             moves_list.append((position[0] + 1, position[1] - 1))
         if (position[0] - 1, position[1] - 1) in white_locations:
@@ -332,12 +341,15 @@ def draw_captured():
 
 # draw a flashing square around king if in check by kishore
 def draw_check():
+    global check
+    check = False
     if turn_step < 2:
         if 'king' in white_pieces:
             king_index = white_pieces.index('king')
             king_location = white_locations[king_index]
             for i in range(len(black_options)):
                 if king_location in black_options[i]:
+                    check = True
                     if counter < 15:
                         pygame.draw.rect(screen, 'dark red', [white_locations[king_index][0] * 100 + 1,
                                                               white_locations[king_index][1] * 100 + 1, 100, 100], 5)
@@ -347,9 +359,80 @@ def draw_check():
             king_location = black_locations[king_index]
             for i in range(len(white_options)):
                 if king_location in white_options[i]:
+                    check = True
                     if counter < 15:
                         pygame.draw.rect(screen, 'dark blue', [black_locations[king_index][0] * 100 + 1,
                                                                black_locations[king_index][1] * 100 + 1, 100, 100], 5)
+
+# add castling
+def check_castling():
+    # king must not currently be in check, neither the rook nor king has moved previously, nothing between
+    # and the king does not pass through or finish on an attacked piece
+    castle_moves = []  # store each valid castle move as [((king_coords), (castle_coords))]
+    rook_indexes = []
+    rook_locations = []
+    king_index = 0
+    king_pos = (0, 0)
+    if turn_step > 1:
+        for i in range(len(white_pieces)):
+            if white_pieces[i] == 'rook':
+                rook_indexes.append(white_moved[i])
+                rook_locations.append(white_locations[i])
+            if white_pieces[i] == 'king':
+                king_index = i
+                king_pos = white_locations[i]
+        if not white_moved[king_index] and False in rook_indexes and not check:
+            for i in range(len(rook_indexes)):
+                castle = True
+                if rook_locations[i][0] > king_pos[0]:
+                    empty_squares = [(king_pos[0] + 1, king_pos[1]), (king_pos[0] + 2, king_pos[1]),
+                                     (king_pos[0] + 3, king_pos[1])]
+                else:
+                    empty_squares = [(king_pos[0] - 1, king_pos[1]), (king_pos[0] - 2, king_pos[1])]
+                for j in range(len(empty_squares)):
+                    if empty_squares[j] in white_locations or empty_squares[j] in black_locations or \
+                            empty_squares[j] in black_options or rook_indexes[i]:
+                        castle = False
+                if castle:
+                    castle_moves.append((empty_squares[1], empty_squares[0]))
+    else:
+        for i in range(len(black_pieces)):
+            if black_pieces[i] == 'rook':
+                rook_indexes.append(black_moved[i])
+                rook_locations.append(black_locations[i])
+            if black_pieces[i] == 'king':
+                king_index = i
+                king_pos = black_locations[i]
+        if not black_moved[king_index] and False in rook_indexes and not check:
+            for i in range(len(rook_indexes)):
+                castle = True
+                if rook_locations[i][0] > king_pos[0]:
+                    empty_squares = [(king_pos[0] + 1, king_pos[1]), (king_pos[0] + 2, king_pos[1]),
+                                     (king_pos[0] + 3, king_pos[1])]
+                else:
+                    empty_squares = [(king_pos[0] - 1, king_pos[1]), (king_pos[0] - 2, king_pos[1])]
+                for j in range(len(empty_squares)):
+                    if empty_squares[j] in white_locations or empty_squares[j] in black_locations or \
+                            empty_squares[j] in white_options or rook_indexes[i]:
+                        castle = False
+                if castle:
+                    castle_moves.append((empty_squares[1], empty_squares[0]))
+    return castle_moves
+
+def draw_castling(moves):
+    if turn_step < 2:
+        color = 'red'
+    else:
+        color = 'blue'
+    for i in range(len(moves)):
+        pygame.draw.circle(screen, color, (moves[i][0][0] * 100 + 50, moves[i][0][1] * 100 + 70), 8)
+        screen.blit(font.render('king', True, 'black'), (moves[i][0][0] * 100 + 30, moves[i][0][1] * 100 + 70))
+        pygame.draw.circle(screen, color, (moves[i][1][0] * 100 + 50, moves[i][1][1] * 100 + 70), 8)
+        screen.blit(font.render('rook', True, 'black'),
+                    (moves[i][1][0] * 100 + 30, moves[i][1][1] * 100 + 70))
+        pygame.draw.line(screen, color, (moves[i][0][0] * 100 + 50, moves[i][0][1] * 100 + 70),
+                         (moves[i][1][0] * 100 + 50, moves[i][1][1] * 100 + 70), 2)
+
 
 # check for winners by harshith
 def draw_game_over(): 
@@ -384,6 +467,8 @@ while run:
     if selection != 100:
         valid_moves = check_valid_moves()
         draw_valid(valid_moves)
+        if selected_piece == 'king':
+            draw_castling(castling_moves)
     
     # Draw the close button
     draw_close_button()
@@ -402,10 +487,13 @@ while run:
                     winner = 'black'
                 if click_coords in white_locations:
                     selection = white_locations.index(click_coords)
+                    # check what piece is selected, so you can only draw castling moves if king is selected
+                    selected_piece = white_pieces[selection]
                     if turn_step == 0:
                         turn_step = 1
                 if click_coords in valid_moves and selection != 100:
                     white_locations[selection] = click_coords
+                    white_moved[selection] = True
                     if click_coords in black_locations:
                         black_piece = black_locations.index(click_coords)
                         captured_pieces_white.append(black_pieces[black_piece])
@@ -413,11 +501,29 @@ while run:
                             winner = 'white'
                         black_pieces.pop(black_piece)
                         black_locations.pop(black_piece)
+                        black_moved.pop(black_piece)
                     black_options = check_options(black_pieces, black_locations, 'black')
                     white_options = check_options(white_pieces, white_locations, 'white')
                     turn_step = 2
                     selection = 100
                     valid_moves = []
+                # add option to castle
+                elif selection != 100 and selected_piece == 'king':
+                    for q in range(len(castling_moves)):
+                        if click_coords == castling_moves[q][0]:
+                            white_locations[selection] = click_coords
+                            white_moved[selection] = True
+                            if click_coords == (1, 0):
+                                rook_coords = (0, 0)
+                            else:
+                                rook_coords = (7, 0)
+                            rook_index = white_locations.index(rook_coords)
+                            white_locations[rook_index] = castling_moves[q][1]
+                            black_options = check_options(black_pieces, black_locations, 'black')
+                            white_options = check_options(white_pieces, white_locations, 'white')
+                            turn_step = 2
+                            selection = 100
+                            valid_moves = []
             if close_button_rect.collidepoint(event.pos):
                 run = False  # Close the game if the "Close" button is clicked
             if turn_step > 1:
@@ -425,10 +531,13 @@ while run:
                     winner = 'white'
                 if click_coords in black_locations:
                     selection = black_locations.index(click_coords)
+                    # check what piece is selected, so you can only draw castling moves if king is selected
+                    selected_piece = black_pieces[selection]
                     if turn_step == 2:
                         turn_step = 3
                 if click_coords in valid_moves and selection != 100:
                     black_locations[selection] = click_coords
+                    black_moved[selection] = True
                     if click_coords in white_locations:
                         white_piece = white_locations.index(click_coords)
                         captured_pieces_black.append(white_pieces[white_piece])
@@ -436,11 +545,29 @@ while run:
                             winner = 'black'
                         white_pieces.pop(white_piece)
                         white_locations.pop(white_piece)
+                        white_moved.pop(white_piece)
                     black_options = check_options(black_pieces, black_locations, 'black')
                     white_options = check_options(white_pieces, white_locations, 'white')
                     turn_step = 0
                     selection = 100
                     valid_moves = []
+                # add option to castle
+                elif selection != 100 and selected_piece == 'king':
+                    for q in range(len(castling_moves)):
+                        if click_coords == castling_moves[q][0]:
+                            black_locations[selection] = click_coords
+                            black_moved[selection] = True
+                            if click_coords == (1, 7):
+                                rook_coords = (0, 7)
+                            else:
+                                rook_coords = (7, 7)
+                            rook_index = black_locations.index(rook_coords)
+                            black_locations[rook_index] = castling_moves[q][1]
+                            black_options = check_options(black_pieces, black_locations, 'black')
+                            white_options = check_options(white_pieces, white_locations, 'white')
+                            turn_step = 0
+                            selection = 100
+                            valid_moves = []
         if event.type == pygame.KEYDOWN and game_over:
             if event.key == pygame.K_RETURN:
                 game_over = False
@@ -449,10 +576,14 @@ while run:
                                 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn']
                 white_locations = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0),
                                    (0, 1), (1, 1), (2, 1), (3, 1), (4, 1), (5, 1), (6, 1), (7, 1)]
+                white_moved = [False, False, False, False, False, False, False, False,
+                                False, False, False, False, False, False, False, False]
                 black_pieces = ['rook', 'knight', 'bishop', 'king', 'queen', 'bishop', 'knight', 'rook',
                                 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn', 'pawn']
                 black_locations = [(0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7),
                                    (0, 6), (1, 6), (2, 6), (3, 6), (4, 6), (5, 6), (6, 6), (7, 6)]
+                black_moved = [False, False, False, False, False, False, False, False,
+                                False, False, False, False, False, False, False, False]
                 captured_pieces_white = []
                 captured_pieces_black = []
                 turn_step = 0
@@ -467,3 +598,13 @@ while run:
 
     pygame.display.flip()
 pygame.quit()
+
+
+
+
+
+# line start by created 
+# Blessto: 1, 23, 219, 283
+# harshith: 133, 301, 321, 354, 
+# Kishore: 156, 255, 311, 333
+# Bala Vinay: 38, 87, 108, 174, 183
